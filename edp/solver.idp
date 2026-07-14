@@ -1,0 +1,81 @@
+// solver.idp (Noe Blassel & Claude Code, July 2026)
+// ---------------------------------------------------------------------------
+// Potential-agnostic FEM definitions + non-linear biasing-dynamics solver, shared by
+// abf.edp and abp.edp -- a potential file has to be included first for getARGV to work.
+load "msh3"
+
+int  nx        = getARGV("-nx", 150);          // solve-mesh resolution (nx x nx)
+int  ny        = nx;
+real dt        = getARGV("-dt", 0.005);       // time step
+real finaltime = getARGV("-T", 5.0);          // final time
+int  stride    = getARGV("-stride", 1);        // store one frame every 'stride' steps
+real alphaTemp = getARGV("-alphaTemp", 5.0);   // ABP tempering parameter; ABF biases by fraction gamma=alpha/(alpha+1)
+real s0        = getARGV("-s0", 0.05);         // initial Gaussian width
+real floorval  = 1e-10;                        // epsilon for division by small numbers
+
+string outdir = "sim_results";
+exec("mkdir -p " + outdir);
+
+cout << "-----------------------------------------------------------------------" << endl
+     << " ABF / ABP time-dependent Fokker-Planck integrator" << endl
+     << " usage:  FreeFem++ -nw <abf|abp>.edp [options]" << endl
+     << "   -nx N        mesh resolution nx*nx      (now " << nx << ")" << endl
+     << "   -dt DT       time step                  (now " << dt << ")" << endl
+     << "   -T  T        final time                 (now " << finaltime << ")" << endl
+     << "   -stride S    save a frame every S steps (now " << stride << ")" << endl
+     << "   -d D         effective dimension        (now " << d << ")" << endl
+     << "   -beta -kappa0 -sigma -alphaTemp -s0      model / method parameters" << endl
+     << " dumps -> " << outdir << "/   then:  python3 make_plots.py [--fps N]" << endl
+     << "-----------------------------------------------------------------------" << endl;
+
+mesh Th = square(nx, ny, [-xmax + 2*xmax*x, -xmax + 2*xmax*y]); // 2D mesh
+fespace Vh2(Th, P1); // 2D fe space
+meshL ThL = segment(nx, [-xmax + 2*xmax*x]);   // 1D mesh
+fespace Vh1(ThL, P1); // 1D fe space
+
+// marginal operators
+matrix R  = interpolate(Vh2, Vh1);
+matrix Rt = R';
+varf vm2(u,v) = int2d(Th)(u*v);   matrix M2 = vm2(Vh2, Vh2);
+varf vm1(u,v) = int1d(ThL)(u*v);  matrix M1 = vm1(Vh1, Vh1);  set(M1, solver=sparsesolver);
+
+macro marginal(f2, f1)
+{
+  real[int] mtmp = M2 * f2[];
+  real[int] mrhs = Rt * mtmp;
+  f1[] = M1^-1 * mrhs;
+} // EOM
+
+// clamp-normalize for stable probability flows
+macro clampNormalize(f)
+{
+  f = max(f, 0.0);
+  f[] /= int2d(Th)(f);
+} // EOM
+
+// unbiased overdamped Langevin Fokker-Planck operator
+varf aBase(u,v) = int2d(Th)( u*v/dt + u*(dxU*dx(v)+dyU*dy(v))
+                             + (1.0/beta)*(dx(u)*dx(v)+dy(u)*dy(v)) );
+matrix A0 = aBase(Vh2,Vh2, solver=sparsesolver);
+varf aMass(u,v) = int2d(Th)( u*v/dt );  matrix Mdt = aMass(Vh2,Vh2);
+func real[int] Prec(real[int] &xx) { real[int] y = A0^-1 * xx; return y; } // preconditioner for GMRES
+
+Vh2 rho, rhoOld, gn=0; // new density, old density, biasing force (for ABF)
+
+// stationary state
+real gammaStat = alphaTemp/(alphaTemp + 1.0);
+Vh2 rhoInf = exp(-beta*(U - gammaStat*Fx));
+rhoInf[] /= int2d(Th)(rhoInf);
+
+// initial condition, unnormalized
+func rho0 = exp(-((x+1.0)^2 + y^2)/(2*s0^2));
+
+// data storage
+int nstep      = floor(finaltime/dt + 0.5);
+int nframesMax = nstep/stride + 2;
+real[int,int] rhoSnap(nframesMax, Vh2.ndof);
+real[int,int] margSnap(nframesMax, Vh1.ndof);
+real[int,int] biasSnap(nframesMax, Vh1.ndof);
+real[int]     tSnap(nframesMax);
+int sc = 0;                         // snapshot counter
+string outprefix = "run";           // driver overrides this before include "write_frames.idp"

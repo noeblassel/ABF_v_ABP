@@ -1,0 +1,22 @@
+// entropic_potential.idp (Noe Blassel & Claude Code, July 2026)
+// Toy model of a high-dimensional entropic barrier. See top-level README.md for details.
+include "getARGV.idp"
+
+real beta   = getARGV("-beta",   1.0);   // inverse temperature
+real kappa0 = getARGV("-kappa0", 1.0);   // intensity of transverse pinching (fixed Gaussian shape)
+real sigma  = getARGV("-sigma",  0.25);  // pinching width
+real d      = getARGV("-d",      2.0);   // effective dimension (entropic barrier prop to d-1)
+real xmax   = 2.5;                        // domain half-width: [-xmax,xmax]^2
+
+func kProf         = 1.0 + kappa0*exp(-x^2/(2*sigma^2));          // per-dimension stiffness bump
+func alphaEff      = exp((d - 1.0)*log(kProf));                   // effective transverse stiffness kProf^(d-1)
+func U   = (x^2-1)^2 + alphaEff*y^2; // potential 
+
+// derivatives
+func dxkProf       = -(kappa0*x/sigma^2)*exp(-x^2/(2*sigma^2));   // d kProf / dx
+func alphaEffPrime = alphaEff*(d - 1.0)*dxkProf/kProf;           // d alphaEff / dx
+func dxU = 4*x*(x^2-1) + alphaEffPrime*y^2;                       // d U / d x
+func dyU = 2*alphaEff*y;                                          // d U / d y
+
+
+func Fx  = (x^2-1)^2 - log(4*pi/(beta*alphaEff))/(2*beta);        // free energy = W + (d-1)/(2 beta) log kProf + const

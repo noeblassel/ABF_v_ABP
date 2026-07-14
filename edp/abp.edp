@@ -1,0 +1,80 @@
+// abp.edp (Noe Blassel & Claude Code, July 2026)
+// Adaptive Biasing Potential non-linear PDE solver. Discretization is detailed in DISCRETIZATION.md
+
+include "entropic_potential.idp"
+include "solver.idp"
+outprefix = outdir + "/abp_alpha" + alphaTemp + "_d" + d;
+
+Vh1 rho1, lnrho1, dlnrho1, bias1;
+Vh2 rho1ext, rho1extf, cond;
+matrix Sc;                           // matrix S(c^n), see DISCRETIZATION.md (rebuilt each step)
+
+// ABP implicit operator  A x = A0 x + (alpha/beta) Sc (P x),  P x = R M1^{-1} R^T M2 x
+func real[int] Aop(real[int] &xx) {
+  real[int] ax = A0 * xx;
+  real[int] t1 = M2 * xx;
+  real[int] t2 = Rt * t1;
+  real[int] t3 = M1^-1 * t2;         // this is the dense op we avoid building
+  real[int] px = R * t3;
+  real[int] bx = Sc * px;
+  ax += (alphaTemp/beta) * bx;
+  return ax;
+}
+
+// biasing force  g(x) = (alpha/beta) d_x log rho^1  from density rr (sets rho1) -- for output purposes only
+varf vBiasGrad(unused, w) = int1d(ThL)(dx(lnrho1)*w);
+macro abpBias(rr, b1)
+{
+  marginal(rr, rho1);
+  lnrho1 = log(max(rho1, floorval));
+  real[int] gbb = vBiasGrad(0, Vh1);
+  dlnrho1[] = M1^-1 * gbb;
+  b1 = (alphaTemp/beta)*dlnrho1;
+} // EOM
+
+// initial condition with unit mass
+rho = rho0; rhoOld = rho;
+real m0 = int2d(Th)(rhoOld); rhoOld[] /= m0; rho = rhoOld;
+
+// snapshot the initial state
+abpBias(rho, bias1);
+rhoSnap(sc,:) = rho[]; margSnap(sc,:) = rho1[]; biasSnap(sc,:) = bias1[]; tSnap(sc)=0.0; sc++;
+
+real mass0 = int2d(Th)(rho);
+cout << "ABP(flux): nx=" << nx << " ndof=" << Vh2.ndof << " dt=" << dt << " T=" << finaltime
+     << " d=" << d << " alphaTemp=" << alphaTemp << " mass0=" << mass0 << endl;
+ofstream tracef(outprefix + "_trace.txt");
+tracef << "# t  L1(rho - rho_inf)" << endl;
+tracef << 0.0 << " " << int2d(Th)(abs(rho - rhoInf)) << endl;
+
+int step = 0;
+for (real t = 0; t < finaltime - 1e-12; t += dt) {
+  // build S(c^n) for the implicit time step
+  marginal(rhoOld, rho1);
+  rho1ext[] = R * rho1[];
+  rho1extf  = max(rho1ext, floorval);
+  cond = rhoOld / rho1extf;          // conditional density c^n
+  varf vSc(u,v) = int2d(Th)( cond*dx(u)*dx(v) );
+  Sc = vSc(Vh2,Vh2);
+
+  // implicit time step:  (A0 + B(rhoOld)) rho = Mdt rhoOld
+  real[int] b = Mdt * rhoOld[];
+  rho[] = rhoOld[];                  // warm initial guess
+  LinearGMRES(Aop, rho[], b, precon=Prec, nbiter=300, eps=1e-9);
+  clampNormalize(rho);
+  rhoOld = rho;
+  step++;
+  tracef << t + dt << " " << int2d(Th)(abs(rho - rhoInf)) << endl;
+
+  // output quantities of interest
+  if (step % stride == 0) {
+    real mass = int2d(Th)(rho);
+    real rmin = rho[].min;
+    abpBias(rho, bias1);
+    rhoSnap(sc,:) = rho[]; margSnap(sc,:) = rho1[]; biasSnap(sc,:) = bias1[];
+    tSnap(sc) = t+dt; sc++;
+    cout << "  t=" << t+dt << " mass=" << mass << " dmass=" << mass-mass0
+         << " min(rho)=" << rmin << endl;
+  }
+}
+include "write_frames.idp";

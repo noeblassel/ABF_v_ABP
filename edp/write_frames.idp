@@ -1,0 +1,46 @@
+// write_frames.idp (Noe Blassel & Claude Code, July 2026)
+// Dumps the mesh (once) and all stored snapshots for the Python movie renderer.
+{
+  Vh2 xx = x, yy = y;
+  ofstream fc(outprefix + "_coords.txt");
+  for (int i = 0; i < Vh2.ndof; i++) fc << xx[][i] << " " << yy[][i] << endl;
+
+  ofstream ft(outprefix + "_tris.txt");
+  for (int k = 0; k < Th.nt; k++) ft << Th[k][0] << " " << Th[k][1] << " " << Th[k][2] << endl;
+
+  Vh1 xg = x;
+  ofstream fx(outprefix + "_xgrid.txt");
+  for (int i = 0; i < Vh1.ndof; i++) fx << xg[][i] << endl;
+
+  ofstream ftimes(outprefix + "_times.txt");
+  for (int f = 0; f < sc; f++) ftimes << tSnap(f) << endl;
+
+  ofstream fr(outprefix + "_rho.txt");
+  for (int f = 0; f < sc; f++) {
+    for (int i = 0; i < Vh2.ndof; i++) fr << rhoSnap(f, i) << " ";
+    fr << endl;
+  }
+
+  ofstream fmg(outprefix + "_marg.txt");
+  for (int f = 0; f < sc; f++) {
+    for (int i = 0; i < Vh1.ndof; i++) fmg << margSnap(f, i) << " ";
+    fmg << endl;
+  }
+
+  ofstream fbi(outprefix + "_bias.txt");
+  for (int f = 0; f < sc; f++) {
+    for (int i = 0; i < Vh1.ndof; i++) fbi << biasSnap(f, i) << " ";
+    fbi << endl;
+  }
+
+  ofstream fp(outprefix + "_params.txt");
+  fp << "beta "      << beta      << endl
+     << "kappa0 "    << kappa0    << endl
+     << "sigma "     << sigma     << endl
+     << "alphaTemp " << alphaTemp << endl
+     << "d "         << d         << endl
+     << "xmax "      << xmax      << endl
+     << "method "    << outprefix << endl;
+
+  cout << "wrote " << sc << " frames with prefix '" << outprefix << "'" << endl;
+}

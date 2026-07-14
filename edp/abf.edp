@@ -1,0 +1,82 @@
+// abf.edp (Noe Blassel & Claude Code, July 2026)
+// Adaptive Biasing Force non-linear PDE solver. Discretization is detailed in DISCRETIZATION.md
+
+include "entropic_potential.idp"
+include "solver.idp"
+outprefix = outdir + "/abf_alpha" + alphaTemp + "_d" + d;
+
+real gamma = alphaTemp / (alphaTemp + 1.0);   // ABF biases by a fraction gamma of the free energy
+
+Vh1 num1, den1, den1f, Aprime, bias1;   // reused each step
+Vh2 dxUrho;
+matrix Bg;                              // bias advection, rebuilt each step
+
+// computes biasing force  g(x) = -gamma A'(x)  from density rr; also builds den1 = marginal(rr)
+macro abfBias(rr, b1)
+{
+  dxUrho = dxU*rr;
+  marginal(dxUrho, num1);
+  marginal(rr, den1);
+  b1 = -gamma*num1/max(den1, floorval);
+} // EOM
+
+// implicit operator  A x = (A0 + B(rhoOld)) x    (A0 is Prec from solver.idp)
+func real[int] Aop(real[int] &xx) {
+  real[int] ax = A0 * xx;s
+  real[int] bx = Bg * xx;
+  ax += bx;
+  return ax;
+}
+
+// initial condition with unit mass
+rho = rho0;
+rhoOld = rho;
+real m0 = int2d(Th)(rhoOld); rhoOld[] /= m0; rho = rhoOld;
+
+// snapshot the initial state
+abfBias(rho, bias1);
+rhoSnap(sc, :) = rho[]; margSnap(sc, :) = den1[]; biasSnap(sc, :) = bias1[];
+tSnap(sc) = 0.0; sc++;
+
+real mass0 = int2d(Th)(rho);
+cout << "ABF: nx=" << nx << " ndof=" << Vh2.ndof << " dt=" << dt << " T=" << finaltime
+     << " d=" << d << " alphaTemp=" << alphaTemp << " mass0=" << mass0 << endl;
+ofstream tracef(outprefix + "_trace.txt");
+tracef << "# t  L1(rho - rho_inf)" << endl;
+tracef << 0.0 << " " << int2d(Th)(abs(rho - rhoInf)) << endl;
+
+int step = 0;
+for (real t = 0; t < finaltime - 1e-12; t += dt) {
+  // compute lagged biasing force  gn = -gamma A'(x)
+  dxUrho = dxU * rhoOld;
+  marginal(dxUrho, num1);
+  marginal(rhoOld, den1);
+  den1f = max(den1, floorval); // clamp for safety
+  Aprime = num1 / den1f;
+  gn[] = R * Aprime[];
+  gn[] *= -gamma;
+  varf vBg(u,v) = int2d(Th)( u*gn*dx(v) );
+  Bg = vBg(Vh2, Vh2);
+
+  // implicit time step:  (A0 + B(rhoOld)) rho = Mdt rhoOld
+  real[int] b = Mdt * rhoOld[];
+  rho[] = rhoOld[];                   // warm initial guess
+  LinearGMRES(Aop, rho[], b, precon=Prec, nbiter=300, eps=1e-9);
+  clampNormalize(rho);
+  rhoOld = rho;
+  step++;
+  tracef << t + dt << " " << int2d(Th)(abs(rho - rhoInf)) << endl;
+
+  // output quantities of interest
+  if (step % stride == 0) {
+    real mass = int2d(Th)(rho);
+    real rmin = rho[].min;
+    abfBias(rho, bias1);
+    rhoSnap(sc, :) = rho[]; margSnap(sc, :) = den1[]; biasSnap(sc, :) = bias1[];
+    tSnap(sc) = t + dt; sc++;
+    cout << "  t=" << t + dt << "  mass=" << mass << "  dmass=" << mass - mass0
+         << "  min(rho)=" << rmin << endl;
+  }
+}
+
+include "write_frames.idp";
