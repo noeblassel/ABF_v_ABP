@@ -1,5 +1,5 @@
 // abf.edp (Noe Blassel & Claude Code, July 2026)
-// Adaptive Biasing Force non-linear PDE solver. Discretization is detailed in DISCRETIZATION.md
+// Adaptive Biasing Force non-linear PDE solver. Discretization is detailed in README.md
 
 include "entropic_potential.idp"
 include "solver.idp"

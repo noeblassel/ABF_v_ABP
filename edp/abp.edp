@@ -1,5 +1,5 @@
 // abp.edp (Noe Blassel & Claude Code, July 2026)
-// Adaptive Biasing Potential non-linear PDE solver. Discretization is detailed in DISCRETIZATION.md
+// Adaptive Biasing Potential non-linear PDE solver. Discretization is detailed in README.md
 
 include "entropic_potential.idp"
 include "solver.idp"
@@ -7,7 +7,7 @@ outprefix = outdir + "/abp_alpha" + alphaTemp + "_d" + d;
 
 Vh1 rho1, lnrho1, dlnrho1, bias1;
 Vh2 rho1ext, rho1extf, cond;
-matrix Sc;                           // matrix S(c^n), see DISCRETIZATION.md (rebuilt each step)
+matrix Sc;                           // matrix S(c^n), see README.md (rebuilt each step)
 
 // ABP implicit operator  A x = A0 x + (alpha/beta) Sc (P x),  P x = R M1^{-1} R^T M2 x
 func real[int] Aop(real[int] &xx) {
