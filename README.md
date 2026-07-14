@@ -48,7 +48,7 @@ Both methods modify the reference dynamics by an extra drift along $e_1$; they d
 - In **ABF**, we add (a fraction of) the *local mean force*,
 
 ```math
-b^{\mathrm{ABF}}_t = \frac{\alpha}{\alpha+1}\mathbb{E}\bigl[\partial_x U(X_t,R_t) \,\big|\, X_t\cdot e_1 = x\bigr]\, e_1 ,
+b^{\mathrm{ABF}}_t = \frac{\alpha}{\alpha+1}\mathbb{E}\bigl[\partial_x U(X_t,R_t) \,\big|\, X_t= x\bigr]\, e_1 ,
 ```
 
 the conditional average of the local force in the reaction-coordinate direction, flattening the free energy barrier.
