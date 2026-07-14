@@ -45,14 +45,19 @@ and $d$ are the swept parameters.
   $$
   \int_{\Omega^1} \rho^1(x) \varphi(x)\,{\rm d} x = \int_{\Omega}\rho(x,y)(R\varphi)(x,y)\,{\rm d}x{\rm d}y,\qquad \forall \varphi
   $$
+
   or, with mass matrix $M_i$ for the $V_i$ $L^2$-inner product, this can be written matricially
+
   $$
   \rho^1 \;=\; M_1^{-1} R^{\mathsf T} M_2\, \rho.
   $$
+
   We also define the operator
+
   $$
     P \;=\; R\,M_1^{-1}R^{\mathsf T}M_2,
   $$
+  
   which sends $\rho$ to $\rho^1$ and re-extends to a $2D$ function.
 
 ## 3. Time
