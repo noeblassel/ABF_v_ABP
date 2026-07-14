@@ -51,7 +51,7 @@ Both methods modify the reference dynamics by an extra drift along $e_1$; they d
 b^{\mathrm{ABF}}_t = \frac{\alpha}{\alpha+1}\mathbb{E}\bigl[\partial_x U(X_t,R_t) \,\big|\, X_t\cdot e_1 = x\bigr]\, e_1 ,
 ```
 
-the conditional average of the local force in the reaction-coordinate direction. At stationarity it equals $F'(x)$, and the corresponding drift cancels the mean force, flattening $F$.
+the conditional average of the local force in the reaction-coordinate direction, flattening the free energy barrier.
 
 - In **ABP**, we add a multiple of the gradient of a *log-marginal*,
 
@@ -59,7 +59,7 @@ the conditional average of the local force in the reaction-coordinate direction.
 b^{\mathrm{ABP}}_t = -\frac{\alpha}{\beta}\, \partial_x \log \rho^1_t(x)\, e_1 ,
 ```
 
-where $\rho^1_t$ is the current law of the reaction coordinate.
+where $\rho^1_t$ is the current law of the reaction coordinate, promoting exploration of underweighted regions.
 
 In both cases the bias depends on the *law* of the process at time $t$ — a conditional expectation for ABF, a marginal for ABP — which makes the dynamics nonlinear.
 
