@@ -42,21 +42,21 @@ and $d$ are the swept parameters.
   the extension `R = interpolate(Vh2,Vh1)` (sends a 1D function to a 2D function constant in $y$; exact
   on the structured mesh). Marginalization has the weak representation
 
-  ```math
-  \int_{\Omega^1} \rho^1(x) \varphi(x)\,{\rm d} x = \int_{\Omega}\rho(x,y)(R\varphi)(x,y)\,{\rm d}x{\rm d}y,\qquad \forall \varphi
-  ```
+```math
+\int_{\Omega^1} \rho^1(x) \varphi(x)\,{\rm d} x = \int_{\Omega}\rho(x,y)(R\varphi)(x,y)\,{\rm d}x{\rm d}y,\qquad \forall \varphi
+```
 
   or, with mass matrix $M_i$ for the $V_i$ $L^2$-inner product, this can be written matricially
 
-  ```math
-  \rho^1 = M_1^{-1} R^{\mathsf T} M_2\, \rho.
-  ```
+```math
+\rho^1 = M_1^{-1} R^{\mathsf T} M_2\, \rho.
+```
 
   We also define the operator
 
-  ```math
-    P = R\,M_1^{-1}R^{\mathsf T}M_2,
-  ```
+```math
+  P = R\,M_1^{-1}R^{\mathsf T}M_2,
+```
   
   which sends $\rho$ to $\rho^1$ and re-extends to a $2D$ function.
 
