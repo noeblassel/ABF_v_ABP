@@ -29,7 +29,7 @@ F(x) = (x^2-1)^2 + \frac{d-1}{2\beta}\ln k(x) + \text{const}.
 ```
 
 Both flows share the explicit stationary state
-$\rho_\infty \propto \exp\left(-\beta(U-\gamma F)\riht)$, implying the same
+$\rho_\infty \propto \exp\left(-\beta(U-\gamma F)\right)$, implying the same
 marginal $\rho^1_\infty\propto e^{-\beta F/(\alpha+1)}$.
 Defaults: $\beta=1$, $\kappa_0=1$, $\sigma=0.25$, $x_{\max}=2.5$; $\alpha$
 and $d$ are the swept parameters.
