@@ -1,0 +1,57 @@
+// labf.edp -- LINEARIZED ABF
+// Author: Noe Blassel / Claude Code, July 2026
+
+include "entropic_potential.idp"
+include "solver.idp"
+outprefix = outdir + "/labf_alpha" + alphaTemp + "_d" + d;   // tag data by (alpha,d)
+
+real gamma = alphaTemp / (alphaTemp + 1.0);   // biasing fraction, as in abf.edp
+
+// full step matrix A = A0 + B(g_inf), one assembly + one factorization
+varf aFrozen(u,v) = int2d(Th)( u*v/dt + u*(dxU*dx(v)+dyU*dy(v))
+                               + (1.0/beta)*(dx(u)*dx(v)+dy(u)*dy(v))
+                               - gamma*dxF*u*dx(v) );
+matrix A = aFrozen(Vh2, Vh2, solver=sparsesolver);
+
+// constant applied biasing force (snapshot every frame for consistency)
+Vh1 biasInf = -gamma*dxF;
+Vh1 rho1;
+
+// initial condition, normalized
+rho = rho0; rhoOld = rho;
+real m0 = int2d(Th)(rhoOld); rhoOld[] /= m0; rho = rhoOld;
+
+// snapshot initial state
+marginal(rho, rho1);
+rhoSnap(sc,:) = rho[]; margSnap(sc,:) = rho1[]; biasSnap(sc,:) = biasInf[];
+tSnap(sc) = 0.0; sc++;
+
+real mass0 = int2d(Th)(rho);
+cout << "l-ABF: nx=" << nx << " ndof=" << Vh2.ndof << " dt=" << dt << " T=" << finaltime
+     << " d=" << d << " alphaTemp=" << alphaTemp << " mass0=" << mass0 << endl;
+ofstream tracef(outprefix + "_trace.txt");
+tracef << "# t  L1(rho - rho_inf)" << endl;
+tracef << 0.0 << " " << int2d(Th)(abs(rho - rhoInf)) << endl;
+
+int step = 0;
+for (real t = 0; t < finaltime - 1e-12; t += dt) {
+  // implicit step is just a linear solve
+  real[int] b = Mdt * rhoOld[];
+  rho[] = A^-1 * b;
+  clampNormalize(rho); // for stability of probability-valued flow
+  rhoOld = rho;
+  step++;
+  tracef << t + dt << " " << int2d(Th)(abs(rho - rhoInf)) << endl;
+
+  // output
+  if (step % stride == 0) {
+    real mass = int2d(Th)(rho);
+    marginal(rho, rho1);
+    rhoSnap(sc,:) = rho[]; margSnap(sc,:) = rho1[]; biasSnap(sc,:) = biasInf[];
+    tSnap(sc) = t + dt; sc++;
+    cout << "  t=" << t + dt << " mass=" << mass << " dmass=" << mass - mass0
+         << " min(rho)=" << rho[].min << endl;
+  }
+}
+
+include "write_frames.idp";

@@ -119,10 +119,79 @@ B(\rho^n)=\frac{\alpha}{\beta}\,S({c^n})P,\quad
 S({c^n}):=\left[\int c^n\,\partial_x u\,\partial_x v\right].
 ```
 
-Since $P$ couples the unknown's marginal into every node, $B(\rho^n)$ is dense and is never
-assembled: the GMRES operator applies $S({c^n})P$ as sparse mat-vecs plus one $M_1^{-1}$ solve from $P$.
+Since $P$ is dense, we never assemble it: the GMRES iteration applies $S({c^n})P$ as sparse matrix-vector multiplications plus one $M_1^{-1}$ solve from $P$.
 
-## 4. Initial condition and output
+## 4. Linearized dynamics: l-ABF and l-ABP
+
+We define linearized variants of both dynamics, where we freeze some instances of the density $\rho_t$ in the non-linear Fokker-Planck operator to its limiting value $\rho_\infty \propto {\rm e}^{-\beta(U-\gamma F)}$.
+
+- To define the **l-ABF** generator, we simply replace $b_t^{\rm ABF}$ by $b_\infty^{\rm ABF}$ in the non-linear drift term (see the top-level `README.md` for definitions). This gives
+
+```math
+{\mathcal L}_{\ell\text ABF}\rho = {\mathcal L}_{\rm FP}\rho -\gamma \nabla\cdot \left(\frac{\int \partial_x U \rho_{\infty}}{\rho_\infty^1}e_x\,\rho\right)
+```
+
+- To define the **l-ABP** generator, we write $\rho_t b_{t}^{\rm ABP}(\rho_t) = e_{x}\frac{\rho_t}{\rho^1_t}\partial_x \rho_t$, which we linearize as $e_x\frac{\rho_\infty}{\rho_\infty^1}\partial_x\rho_t$, which is different from $\rho b_\infty^{\rm ABP}$. This gives the operator
+
+```math
+{\mathcal L}_{\ell\text ABP}\rho = {\mathcal L}_{\rm FP}\rho + \frac{\alpha}{\beta}\nabla\cdot \left(\frac{\rho_\infty}{\rho^1_\infty} e_{x}\,\partial_x \rho\right)
+```
+
+where in both cases,
+
+```math
+{\mathcal L}_{FP}\rho = \nabla\cdot(\rho\nabla U + \beta^{-1}\nabla\rho)
+```
+
+is the unbiased overdamped Fokker-Planck generator.
+
+### 4.a - Time discretization
+
+The step matrix is now **constant in time**. We factorize the linearized operator once, and advance by one linear solve per step.
+
+- **l-ABF**, the discrete step matrix
+
+```math
+A_{\ell\text{ABF}} = A_0 + \big[\textstyle\int u\,g_\infty\,\partial_x v\big]
+```
+
+is sparse. It is assembled and factorized at initialization, using for $g_\infty$ the analytic expression for the free energy to define the variational form.
+
+- **l-ABP**, the discretized step matrix is given by
+
+```math
+A_{\ell\text{ABP}} = A_0 + B,\qquad
+B = \frac{\alpha}{\beta}\,S(c_\infty)\,P,\qquad
+P=R\,M_1^{-1}R^{\mathsf T}M_2,\qquad
+S(c_\infty)=\big[\textstyle\int c_\infty\,\partial_x u\,\partial_x v\big],
+```
+
+where the coefficient $c_\infty=\rho_\infty/\rho^1_\infty$ is the equilibrium conditional density, wihch also known analytically for the entropic potential (it is a Gaussian distribution).
+
+Since $P$ is dense, it is not practical to assemble and factor $A_{\ell\text{ABP}}$ explicitly. Instead, noting $m=n_x+1$ the number of degrees of freedom in $V_1$ and $N=O(m^2)$ in $V_2$, we use the fact that $M_1$ is a $m\times m$ matrix, so that $A_{\ell\text{ABP}}$ is a rank-$m$ perturbation of $A_0$. Setting $A=A_0$ (sparse $N\times N$), $U=S(c_\infty)R$ (sparse $N\times m$), $C= \frac{\alpha}{\beta}M_1^{-1}$ (dense $m\times m$) and $V=R^{\mathsf T}M_2$ (sparse $m\times N$), the [**Woodbury lemma**](https://en.wikipedia.org/wiki/Woodbury_matrix_identity) gives the inversion formula
+
+```math
+A_{\ell\text{ABP}}^{-1}=(A_0+UCV)^{-1}=A_0^{-1}-A_0^{-1}U\,G^{-1}\,V A_0^{-1},
+\qquad
+G=C^{-1}+V A_0^{-1}U=\tfrac{\beta}{\alpha}M_1+VW,\quad W=A_0^{-1}U .
+```
+
+We precompute the factorization of $A_0$, the dense $N\times m$ block $W=A_0^{-1}U$ ($m$ linear solves), and factorize small dense $m\times m$ matrix $G$. Each step of the scheme then costs one $A_0$ solve with $O(Nm)$ dense algebra:
+
+$$
+z=A_0^{-1}\big(\tfrac{1}{\Delta t}M_2\rho^n\big),\qquad
+h=G^{-1}(Vz),\qquad
+\rho^{n+1}=z-W h .
+$$
+
+Both linearized schemes apply the same clamp/normalization step as their non-linear counterparts.
+
+
+## 5. Time rescaling
+
+TODO
+
+## 6. Initial condition and output
 - A Gaussian in the left well, $\rho_0\propto e^{-((x+1)^2+y^2)/2s_0^2}$,
 normalized to unit mass; identical for both methods.
 - Mass $\int\rho\equiv1$ (to $\sim10^{-14}$) and $\min\rho\ge0$ by construction.

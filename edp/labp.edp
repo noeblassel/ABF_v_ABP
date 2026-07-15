@@ -1,0 +1,89 @@
+// labp.edp -- LINEARIZED ABP (nonlinearity frozen at t=inf)
+// Author: Noe Blassel / Claude Code, July 2026
+
+include "entropic_potential.idp"
+include "solver.idp"
+outprefix = outdir + "/labp_alpha" + alphaTemp + "_d" + d;   // tag data by (alpha,d)
+
+// S(c_inf), computed once, never inverted in time-stepping (see Woodbury approach in README.md)
+varf vSc(u,v) = int2d(Th)( condInf*dx(u)*dx(v) );
+matrix Sc = vSc(Vh2, Vh2);
+
+// Matrix assembly for Woodbury
+int n2 = Vh2.ndof, nrc = Vh1.ndof;
+real[int,int] W(n2, nrc), G(nrc, nrc);
+{
+  real[int] ej(nrc), rj(n2), uj(n2), wj(n2), t2(n2), vj(nrc), mj(nrc);
+  for (int j = 0; j < nrc; j++) {
+    ej = 0; ej[j] = 1.0;
+    rj = R*ej;                        
+    uj = Sc*rj;                       
+    wj = A0^-1 * uj;                  
+    W(:, j) = wj;         // W(:,j) = S(c_inf) R e_j
+    t2 = M2*wj;  vj = Rt*t2;          
+    mj = M1*ej;  mj *= beta/alphaTemp;
+    vj += mj;
+    G(:, j) = vj; // G(:,j) = ((beta/alpha)M1 + R^T M2 W)e_j
+  }
+}
+matrix Gm = G;                        // nrc x nrc (small) 
+set(Gm, solver=sparsesolver);
+
+// compute the biasing force that would be applied by (nonlinear) ABP at the current value of rho
+Vh1 rho1, lnrho1, dlnrho1, bias1;
+varf vBiasGrad(unused, w) = int1d(ThL)(dx(lnrho1)*w);
+macro abpBias(rr, b1)
+{
+  marginal(rr, rho1);
+  lnrho1 = log(max(rho1, floorval));
+  real[int] gbb = vBiasGrad(0, Vh1);
+  dlnrho1[] = M1^-1 * gbb;
+  b1 = (alphaTemp/beta)*dlnrho1;
+} // EOM
+
+// initial condition, normalized
+rho = rho0; rhoOld = rho;
+real m0 = int2d(Th)(rhoOld); rhoOld[] /= m0; rho = rhoOld;
+
+// snapshot initial state
+abpBias(rho, bias1);
+rhoSnap(sc,:) = rho[]; margSnap(sc,:) = rho1[]; biasSnap(sc,:) = bias1[]; tSnap(sc)=0.0; sc++;
+
+real mass0 = int2d(Th)(rho);
+cout << "l-ABP(Woodbury): nx=" << nx << " ndof=" << Vh2.ndof << " dt=" << dt
+     << " T=" << finaltime << " d=" << d << " alphaTemp=" << alphaTemp
+     << " mass0=" << mass0 << endl;
+ofstream tracef(outprefix + "_trace.txt");
+tracef << "# t  L1(rho - rho_inf)" << endl;
+tracef << 0.0 << " " << int2d(Th)(abs(rho - rhoInf)) << endl;
+
+int step = 0;
+
+real[int] z0(n2),z(n2),mz(n2),wh(n2),h0(nrc),h(nrc);
+
+for (real t = 0; t < finaltime - 1e-12; t += dt) {
+  // Woodbury solve
+  z0 = Mdt * rhoOld[];
+  z = A0^-1 * z0; // z = A0^-1 M2 rhoOld / dt
+  mz = M2*z;  h0 = Rt*mz;
+  h = Gm^-1 * h0; // h = G^-1 V z
+  wh = W*h;
+  rho[] = z; rho[] -= wh; // rho = z - Wh
+
+
+  clampNormalize(rho); // linearity of probability flow
+  rhoOld = rho;
+  step++;
+  tracef << t + dt << " " << int2d(Th)(abs(rho - rhoInf)) << endl;
+
+  // output
+  if (step % stride == 0) {
+    real mass = int2d(Th)(rho);
+    abpBias(rho, bias1);
+    rhoSnap(sc,:) = rho[]; margSnap(sc,:) = rho1[]; biasSnap(sc,:) = bias1[];
+    tSnap(sc) = t+dt; sc++;
+    cout << "  t=" << t+dt << " mass=" << mass << " dmass=" << mass-mass0
+         << " min(rho)=" << rho[].min << endl;
+  }
+}
+include "write_frames.idp";
