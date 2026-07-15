@@ -109,18 +109,58 @@ One file per `d` in `DIMS_TO_RUN`:
 | ABF($\alpha$)); solid = fraction passed 0, dashed = fraction passed 0 then
 1, colored by $\alpha$.
 
-## 7. Files and usage
+## 7. Animation (`gif.jl`)
+
+Trajectory-recording counterpart of `main.jl`, in the style of
+`../finite_particles/gif.jl`: same potential, same precomputed-bias-field
+loader/interpolator, same reflected integrators, but the full $(x,y)$ path
+of every particle is stored instead of only first-passage times, and
+rendered as an animated GIF (GR backend, matching
+`../finite_particles/gif.jl`'s choice for GIF export — `main.jl` uses
+PlotlyJS instead, since it only needs a static interactive HTML figure).
+
+It is zoomed in on the **early transient only**: simulated up to
+`SIM_TMAX = 0.5` rather than the bias files' full domain $T=5$ (the bias
+files themselves still cover $[0,5]$ — `TFINAL=5` is kept as the constant
+used to clamp/interpolate `bias_at`, only the simulated/animated window is
+shortened), and densely sampled throughout (119 frames over 1000 steps,
+`fps=100`, so the GIF shows the initial pile-up breaking apart rather than
+the long tail of already-mixed particles drifting to steady state.
+
+For each $d\in\{2,10\}$ it renders a $2\times4$ grid, potential contour in
+the background, particles overlaid as a red scatter:
+
+```
+row 1:  ABP(α=0.125) | ABP(α=1) | ABP(α=4) | ABP(α=16)
+row 2:  Unbiased     | ABF(α=1) | ABF(α=4) | ABF(α=16)
+```
+
+ABP sweeps all four alphas; ABF shares the $\alpha=1,4,16$ triple with ABP
+(a matched-$\alpha$ comparison of the two algorithms), with Unbiased
+taking the remaining slot in row 2. All 8 panels for a given $d$ reuse one
+`Params` (one seed, reseeded identically before each method's run), so
+every panel sees the *same* noise realization and initial draw — the only
+thing that differs between panels is the bias itself. Requires the bias
+files for $(\alpha,d)\in\{0.125,1,4,16\}\times\{2,10\}$ for `abp`, and
+$(\alpha,d)\in\{1,4,16\}\times\{2,10\}$ for `abf` — all present in
+`biases/`.
+
+Output: `meanfield_particles_d2.gif`, `meanfield_particles_d10.gif`.
+
+## 8. Files and usage
 
 | file | role |
 |---|---|
-| `main.jl` | everything: potential, bias-field loader/interpolator, the three integrators (unbiased/ABP/ABF), the parallel $\alpha$-sweep, the figure. |
+| `main.jl` | potential, bias-field loader/interpolator, the three first-passage-time integrators (unbiased/ABP/ABF), the parallel $\alpha$-sweep, the crossing-fraction figure. |
+| `gif.jl` | same model/bias loader, trajectory-recording integrators, the $d\in\{2,10\}$ particle-animation GIFs. |
 | `biases/` | precomputed $g(x,t)$ grids from `../edp/`, one file per (algorithm, $\alpha$, $d$). |
 
 ```
 julia --threads=32 main.jl
+julia gif.jl
 ```
 
 `DIMS_TO_RUN` (top of `main.jl`) selects which of the precomputed dimensions
 $d\in\{2,\dots,10\}$ get simulated. Parallelism is a single
 `Threads.@threads` loop over the flattened $(\alpha,\text{rep})$ job list
-for ABP+ABF plus the unbiased replicates.
+for ABP+ABF plus the unbiased replicates. `gif.jl` is single-threaded.
