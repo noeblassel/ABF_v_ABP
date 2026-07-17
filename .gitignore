@@ -3,6 +3,5 @@ edp/sim_results
 edp/for_claude
 edp/.claude
 mean_field/biases
+
 *.gif
-*.png
-*.html
