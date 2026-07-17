@@ -69,20 +69,25 @@ In both cases, the stationary measure is a Gibbs measure $\propto \exp(-\beta(U-
 
 The behavior of these algorithms is studied at three levels of comparison.
 
-1. **Nonlinear PDE** (`EDP/`). This corresponds to the evolution of the time-marginals in each method, solved using non-linear PDE solvers, implemented in FreeFEM++
+1. **Nonlinear PDE** (`edp/`). This corresponds to the evolution of the time-marginals in each method, solved using non-linear PDE solvers, implemented in FreeFEM++
 
 2. **McKean–Vlasov SDE** (`mean_field/`). This correspond to the mean-field limit of the algorithm, the stochastic dynamics of a typical replica in the infinite population limit of the algorithm.
 
-3. **Interacting particle system** (`IPS/`). This is the actual enhanced sampling scheme, given by an interacting particle system. The biasing term is estimated from the instantaneous state of the population.
+3. **Interacting particle system** (`ips/`). This is the actual enhanced sampling scheme, given by an interacting particle system. The biasing term is estimated from the instantaneous state of the population.
 
 ## List of subdirectories
 
-- `EDP/` — nonlinear PDE models
-- `Mean-field/` — McKean–Vlasov diffusion model
-- `IPS/` — interacting particle system
+- `edp/` — nonlinear PDE models
+- `mean_field/` — McKean–Vlasov diffusion model
+- `ips/` — interacting particle system
 
 ## References
 
 [^LROS]: T. Lelièvre, F. Otto, M. Rousset, and G. Stoltz, *Long-time convergence of an Adaptive Biasing Force method*, Nonlinearity **21** (2008), no. 6, 1155–1181. [doi:10.1088/0951-7715/21/6/001](https://doi.org/10.1088/0951-7715/21/6/001), [arXiv:0706.1695](https://arxiv.org/abs/0706.1695).
 
 [^MLL]: T. Lelièvre, X. Lin, and P. Monmarché, *Convergence rates for an Adaptive Biasing Potential scheme from a Wasserstein optimization perspective*, preprint (2025). [arXiv:2501.17979](https://arxiv.org/abs/2501.17979).
+
+
+## Examples
+
+![convergence_plot](./plots/trace_alpha4_d7.png)
