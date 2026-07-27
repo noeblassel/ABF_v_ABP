@@ -2,3 +2,8 @@ edp/plots
 edp/sim_results
 edp/for_claude
 edp/.claude
+
+classic_md/__pycache__
+classic_md/plots
+classic_md/results
+classic_md/.mlpconfig
