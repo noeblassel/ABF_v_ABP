@@ -61,7 +61,7 @@ Base.@kwdef mutable struct Params
     nsteps::Int          = round(Int, 0.5 / 5e-4)
     beta::Float64         = 1.0
     d::Int              = 2
-    sigma_kernel::Float64  = 0.02   # Gaussian kernel width used inside ABP's bias construction
+    sigma_kernel::Float64  = 0.2   # Gaussian kernel width used inside ABP's bias construction
     eps_reg::Float64       = 1e-3
     x0_mean::Float64      = -1.0
     y0_mean::Float64      = 0.0
